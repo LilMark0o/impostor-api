@@ -1,0 +1,76 @@
+import random
+
+from pydantic import BaseModel
+
+from app.models import Mode, Player
+from app.providers.llm import LLMProvider
+
+
+class RoleAssignment(BaseModel):
+    player: Player
+    is_impostor: bool
+    word: str
+    hint: str | None = None
+    accomplice: str | None = None  # name of ally in aliados mode
+
+
+async def assign_roles(
+    players: list[Player],
+    mode: Mode,
+    category: str,
+    word: str,
+    difficulty: str,
+    llm: LLMProvider,
+) -> list[RoleAssignment]:
+    shuffled = players.copy()
+    random.shuffle(shuffled)
+
+    if mode == Mode.clasico:
+        n_impostors = 1
+    elif mode in (Mode.caos, Mode.ciego):
+        n_impostors = random.randint(0, len(shuffled))
+    elif mode == Mode.aliados:
+        n_impostors = 2
+    elif mode == Mode.espejo:
+        n_impostors = random.randint(1, max(1, len(shuffled) // 2))
+    else:
+        n_impostors = 1
+
+    impostors = set(p.name for p in shuffled[:n_impostors])
+    accomplices = (
+        {p.name: shuffled[(i + 1) % n_impostors].name for i, p in enumerate(shuffled[:n_impostors])}
+        if mode == Mode.aliados and n_impostors > 1
+        else {}
+    )
+
+    mirror_words: dict[str, str] = {}
+    if mode == Mode.espejo:
+        for p in shuffled[:n_impostors]:
+            mirror_words[p.name] = await llm.pick_mirror_word(category, exclude=word)
+
+    used_hints: list[str] = []
+    assignments: list[RoleAssignment] = []
+
+    for player in shuffled:
+        if player.name in impostors:
+            hint = await llm.pick_hint(category, word, difficulty, exclude=used_hints)
+            used_hints.append(hint)
+            assignments.append(
+                RoleAssignment(
+                    player=player,
+                    is_impostor=True,
+                    word=mirror_words.get(player.name, word),
+                    hint=hint,
+                    accomplice=accomplices.get(player.name),
+                )
+            )
+        else:
+            assignments.append(
+                RoleAssignment(
+                    player=player,
+                    is_impostor=False,
+                    word=word,
+                )
+            )
+
+    return assignments
