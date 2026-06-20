@@ -2,27 +2,55 @@ from unittest.mock import AsyncMock
 
 import pytest
 from httpx import ASGITransport, AsyncClient
+from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
+from app.db import Base, get_db
 from app.main import app
+
+TEST_DATABASE_URL = "sqlite+aiosqlite:///:memory:"
 
 
 @pytest.fixture
-async def client():
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
-        yield ac
+async def db_engine():
+    engine = create_async_engine(TEST_DATABASE_URL)
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+    yield engine
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.drop_all)
+    await engine.dispose()
+
+
+@pytest.fixture
+async def db_session(db_engine):
+    factory = async_sessionmaker(db_engine, expire_on_commit=False)
+    async with factory() as session:
+        yield session
+
+
+@pytest.fixture
+async def client(db_session):
+    async def override_db():
+        yield db_session
+
+    app.dependency_overrides[get_db] = override_db
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+        yield c
+    app.dependency_overrides.clear()
 
 
 @pytest.fixture
 def mock_llm():
-    llm = AsyncMock()
-    llm.pick_word.return_value = "perro"
-    llm.pick_hint.return_value = "fiel"
-    llm.pick_mirror_word.return_value = "gato"
-    return llm
+    m = AsyncMock()
+    m.pick_word.return_value = "perro"
+    m.pick_hint.return_value = "fiel"
+    m.pick_mirror_word.return_value = "gato"
+    m.validate_category.return_value = True
+    return m
 
 
 @pytest.fixture
 def mock_messaging():
-    msg = AsyncMock()
-    msg.send.return_value = True
-    return msg
+    m = AsyncMock()
+    m.send.return_value = True
+    return m
