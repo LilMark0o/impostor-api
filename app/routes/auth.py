@@ -1,10 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
 from pydantic import BaseModel
-from app.db import get_db, _new_uuid
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.auth import create_access_token, exchange_google_code, get_current_user
+from app.db import _new_uuid, get_db
 from app.models_db import User
-from app.auth import exchange_google_code, create_access_token, get_current_user
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 

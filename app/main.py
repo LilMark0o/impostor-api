@@ -7,9 +7,9 @@ load_dotenv()
 from fastapi import FastAPI  # noqa: E402
 from fastapi.middleware.cors import CORSMiddleware  # noqa: E402
 
-from app.db import engine, Base  # noqa: E402
-from app.routes.game import router as game_router  # noqa: E402
+from app.db import Base, engine  # noqa: E402
 from app.routes.auth import router as auth_router  # noqa: E402
+from app.routes.game import router as game_router  # noqa: E402
 from app.routes.users import router as users_router  # noqa: E402
 
 

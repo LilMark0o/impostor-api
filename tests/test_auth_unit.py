@@ -1,6 +1,7 @@
-from app.auth import create_access_token, decode_token
-from jose import JWTError
 import pytest
+from jose import JWTError
+
+from app.auth import create_access_token, decode_token
 
 
 def test_token_roundtrip():

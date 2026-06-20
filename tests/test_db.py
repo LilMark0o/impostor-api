@@ -1,7 +1,8 @@
 import pytest
-from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
+from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+
 from app.db import Base, _new_uuid
-from app.models_db import User, Player
+from app.models_db import Player, User
 
 
 @pytest.fixture
