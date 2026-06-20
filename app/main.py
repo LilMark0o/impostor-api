@@ -10,6 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware  # noqa: E402
 from app.db import engine, Base  # noqa: E402
 from app.routes.game import router as game_router  # noqa: E402
 from app.routes.auth import router as auth_router  # noqa: E402
+from app.routes.users import router as users_router  # noqa: E402
 
 
 @asynccontextmanager
@@ -30,6 +31,7 @@ app.add_middleware(
 
 app.include_router(game_router, prefix="/api")
 app.include_router(auth_router)
+app.include_router(users_router)
 
 
 @app.get("/api/health")
