@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import BigInteger, DateTime, ForeignKey, String
+from sqlalchemy import BigInteger, Boolean, DateTime, ForeignKey, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db import Base, _new_uuid
@@ -34,3 +34,38 @@ class Player(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
     user: Mapped["User"] = relationship("User", back_populates="players")
+
+
+class GameSession(Base):
+    __tablename__ = "game_sessions"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=_new_uuid)
+    user_id: Mapped[str] = mapped_column(
+        String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    category: Mapped[str] = mapped_column(String, nullable=False)
+    mode: Mapped[str] = mapped_column(String, nullable=False)
+    difficulty: Mapped[str] = mapped_column(String, nullable=False)
+    n_impostors: Mapped[int] = mapped_column(nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+    results: Mapped[list["GamePlayerResult"]] = relationship(
+        "GamePlayerResult", back_populates="session", cascade="all, delete-orphan"
+    )
+
+
+class GamePlayerResult(Base):
+    __tablename__ = "game_player_results"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=_new_uuid)
+    session_id: Mapped[str] = mapped_column(
+        String, ForeignKey("game_sessions.id", ondelete="CASCADE"), nullable=False
+    )
+    player_id: Mapped[str] = mapped_column(
+        String, ForeignKey("players.id", ondelete="CASCADE"), nullable=False
+    )
+    player_name: Mapped[str] = mapped_column(String, nullable=False)
+    is_impostor: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    category_shown: Mapped[str] = mapped_column(String, nullable=False)
+
+    session: Mapped["GameSession"] = relationship("GameSession", back_populates="results")
