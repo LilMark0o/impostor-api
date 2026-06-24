@@ -1,7 +1,11 @@
 import random
 
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.db import _new_uuid
 from app.game.roles import RoleAssignment, assign_roles
-from app.models import Difficulty, Mode, Player, StartGameResponse
+from app.models import Difficulty, Mode, Player, PlayerTokenOut, StartGameResponse
+from app.models_db import GamePlayerResult, GameSession
 from app.providers.llm import LLMProvider
 from app.providers.messaging import MessagingProvider
 
@@ -25,9 +29,10 @@ def _build_message(assignment: RoleAssignment, mode: Mode, category: str, n_impo
 
 
 class GameEngine:
-    def __init__(self, llm: LLMProvider, messaging: MessagingProvider):
+    def __init__(self, llm: LLMProvider, messaging: MessagingProvider, db: AsyncSession):
         self._llm = llm
         self._messaging = messaging
+        self._db = db
 
     async def run(
         self,
@@ -35,6 +40,7 @@ class GameEngine:
         categories: list[str],
         mode: Mode = Mode.caos,
         difficulty: Difficulty = Difficulty.dificil,
+        user_id: str = "",
     ) -> StartGameResponse:
         category = random.choice(categories)
         word = await self._llm.pick_word(category)
@@ -52,13 +58,47 @@ class GameEngine:
         sent: list[str] = []
         failed: list[str] = []
 
+        # Send Telegram messages (best-effort, skipped if no telegram_id)
         for assignment in assignments:
+            if assignment.player.telegram_id is None:
+                failed.append(assignment.player.name)
+                continue
             msg = _build_message(assignment, mode, category, n_impostors)
             ok = await self._messaging.send(assignment.player.telegram_id, msg)
             (sent if ok else failed).append(assignment.player.name)
             status = "✓" if ok else "✗"
             role = "IMPOSTOR" if assignment.is_impostor else "jugador"
             print(f"  {status} {assignment.player.name} ({role})")
+
+        # Persist game session + per-player results (only for players with a real DB id)
+        session = GameSession(
+            id=_new_uuid(),
+            user_id=user_id or "anonymous",
+            category=category,
+            mode=mode.value,
+            difficulty=difficulty.value,
+            n_impostors=n_impostors,
+        )
+        self._db.add(session)
+
+        player_tokens: list[PlayerTokenOut] = []
+        for assignment in assignments:
+            if assignment.player.id:
+                category_shown = assignment.word if not assignment.is_impostor else ""
+                result = GamePlayerResult(
+                    id=_new_uuid(),
+                    session_id=session.id,
+                    player_id=assignment.player.id,
+                    player_name=assignment.player.name,
+                    is_impostor=assignment.is_impostor,
+                    category_shown=category_shown,
+                )
+                self._db.add(result)
+            player_tokens.append(
+                PlayerTokenOut(name=assignment.player.name, token=assignment.player.token)
+            )
+
+        await self._db.commit()
 
         print(
             f"\nModo: {mode.value} | Categoría: {category} "
@@ -71,4 +111,6 @@ class GameEngine:
             n_impostors=n_impostors,
             sent=sent,
             failed=failed,
+            session_id=session.id,
+            players=player_tokens,
         )

@@ -31,9 +31,16 @@ class StartGameRequest(BaseModel):
     categories: list[str] | None = None
 
 
+class PlayerTokenOut(BaseModel):
+    name: str
+    token: str
+
+
 class StartGameResponse(BaseModel):
     category: str
     mode: Mode
     n_impostors: int
     sent: list[str]
     failed: list[str]
+    session_id: str
+    players: list[PlayerTokenOut]
