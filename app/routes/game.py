@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.auth import get_current_user
+from app.auth import get_current_user_optional
 from app.config import DEFAULT_CATEGORIES
 from app.db import get_db
 from app.game.engine import GameEngine
@@ -20,7 +20,7 @@ async def get_categories():
 @router.post("/game/start", response_model=StartGameResponse)
 async def start_game(
     req: StartGameRequest,
-    user_id: str = Depends(get_current_user),
+    user_id: str | None = Depends(get_current_user_optional),
     db: AsyncSession = Depends(get_db),
 ):
     categories = req.categories or DEFAULT_CATEGORIES

@@ -40,7 +40,7 @@ class GameEngine:
         categories: list[str],
         mode: Mode = Mode.caos,
         difficulty: Difficulty = Difficulty.dificil,
-        user_id: str = "",
+        user_id: str | None = None,
     ) -> StartGameResponse:
         category = random.choice(categories)
         word = await self._llm.pick_word(category)
@@ -73,7 +73,7 @@ class GameEngine:
         # Persist game session + per-player results (only for players with a real DB id)
         session = GameSession(
             id=_new_uuid(),
-            user_id=user_id or "anonymous",
+            user_id=user_id,
             category=category,
             mode=mode.value,
             difficulty=difficulty.value,
