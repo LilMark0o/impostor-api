@@ -12,13 +12,14 @@ router = APIRouter(prefix="/users", tags=["users"])
 
 class PlayerCreate(BaseModel):
     name: str
-    telegram_id: int
+    telegram_id: int | None = None
 
 
 class PlayerOut(BaseModel):
     id: str
     name: str
-    telegram_id: int
+    telegram_id: int | None
+    token: str
 
 
 @router.get("/players", response_model=list[PlayerOut])
@@ -26,7 +27,10 @@ async def list_players(
     user_id: str = Depends(get_current_user), db: AsyncSession = Depends(get_db)
 ):
     result = await db.execute(select(Player).where(Player.user_id == user_id))
-    return [PlayerOut(id=p.id, name=p.name, telegram_id=p.telegram_id) for p in result.scalars()]
+    return [
+        PlayerOut(id=p.id, name=p.name, telegram_id=p.telegram_id, token=p.token)
+        for p in result.scalars()
+    ]
 
 
 @router.post("/players", response_model=PlayerOut, status_code=201)
@@ -35,11 +39,16 @@ async def create_player(
     user_id: str = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    player = Player(id=_new_uuid(), user_id=user_id, name=body.name, telegram_id=body.telegram_id)
+    player = Player(
+        id=_new_uuid(),
+        user_id=user_id,
+        name=body.name,
+        telegram_id=body.telegram_id,
+    )
     db.add(player)
     await db.commit()
     await db.refresh(player)
-    return PlayerOut(id=player.id, name=player.name, telegram_id=player.telegram_id)
+    return PlayerOut(id=player.id, name=player.name, telegram_id=player.telegram_id, token=player.token)
 
 
 @router.delete("/players/{player_id}", status_code=204)
