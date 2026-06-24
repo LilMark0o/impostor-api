@@ -1,13 +1,24 @@
+import os
 from logging.config import fileConfig
 
+from dotenv import load_dotenv
 from sqlalchemy import engine_from_config, pool
 
 from alembic import context
 from app.models_db import Base  # noqa: F401 — ensures models are registered
 
+load_dotenv()
+
 config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
+
+# Override sqlalchemy.url from environment if DATABASE_URL is set.
+# asyncpg is async-only; swap to psycopg2/pg8000 for the sync Alembic runner.
+db_url = os.environ.get("DATABASE_URL", "")
+if db_url:
+    db_url = db_url.replace("postgresql+asyncpg://", "postgresql://")
+    config.set_main_option("sqlalchemy.url", db_url)
 
 target_metadata = Base.metadata
 
