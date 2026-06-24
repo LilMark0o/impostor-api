@@ -18,30 +18,35 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    op.create_table(
-        "game_sessions",
-        sa.Column("id", sa.String(), nullable=False),
-        sa.Column("user_id", sa.String(), nullable=False),
-        sa.Column("category", sa.String(), nullable=False),
-        sa.Column("mode", sa.String(), nullable=False),
-        sa.Column("difficulty", sa.String(), nullable=False),
-        sa.Column("n_impostors", sa.Integer(), nullable=False),
-        sa.Column("created_at", sa.DateTime(), nullable=True),
-        sa.ForeignKeyConstraint(["user_id"], ["users.id"], ondelete="CASCADE"),
-        sa.PrimaryKeyConstraint("id"),
-    )
-    op.create_table(
-        "game_player_results",
-        sa.Column("id", sa.String(), nullable=False),
-        sa.Column("session_id", sa.String(), nullable=False),
-        sa.Column("player_id", sa.String(), nullable=False),
-        sa.Column("player_name", sa.String(), nullable=False),
-        sa.Column("is_impostor", sa.Boolean(), nullable=False),
-        sa.Column("category_shown", sa.String(), nullable=False),
-        sa.ForeignKeyConstraint(["session_id"], ["game_sessions.id"], ondelete="CASCADE"),
-        sa.ForeignKeyConstraint(["player_id"], ["players.id"], ondelete="CASCADE"),
-        sa.PrimaryKeyConstraint("id"),
-    )
+    existing = sa.inspect(op.get_bind()).get_table_names()
+
+    if "game_sessions" not in existing:
+        op.create_table(
+            "game_sessions",
+            sa.Column("id", sa.String(), nullable=False),
+            sa.Column("user_id", sa.String(), nullable=False),
+            sa.Column("category", sa.String(), nullable=False),
+            sa.Column("mode", sa.String(), nullable=False),
+            sa.Column("difficulty", sa.String(), nullable=False),
+            sa.Column("n_impostors", sa.Integer(), nullable=False),
+            sa.Column("created_at", sa.DateTime(), nullable=True),
+            sa.ForeignKeyConstraint(["user_id"], ["users.id"], ondelete="CASCADE"),
+            sa.PrimaryKeyConstraint("id"),
+        )
+
+    if "game_player_results" not in existing:
+        op.create_table(
+            "game_player_results",
+            sa.Column("id", sa.String(), nullable=False),
+            sa.Column("session_id", sa.String(), nullable=False),
+            sa.Column("player_id", sa.String(), nullable=False),
+            sa.Column("player_name", sa.String(), nullable=False),
+            sa.Column("is_impostor", sa.Boolean(), nullable=False),
+            sa.Column("category_shown", sa.String(), nullable=False),
+            sa.ForeignKeyConstraint(["session_id"], ["game_sessions.id"], ondelete="CASCADE"),
+            sa.ForeignKeyConstraint(["player_id"], ["players.id"], ondelete="CASCADE"),
+            sa.PrimaryKeyConstraint("id"),
+        )
 
 
 def downgrade() -> None:
