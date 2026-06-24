@@ -40,9 +40,7 @@ class GameSession(Base):
     __tablename__ = "game_sessions"
 
     id: Mapped[str] = mapped_column(String, primary_key=True, default=_new_uuid)
-    user_id: Mapped[str] = mapped_column(
-        String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False
-    )
+    user_id: Mapped[str | None] = mapped_column(String, nullable=True)
     category: Mapped[str] = mapped_column(String, nullable=False)
     mode: Mapped[str] = mapped_column(String, nullable=False)
     difficulty: Mapped[str] = mapped_column(String, nullable=False)
