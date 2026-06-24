@@ -2,7 +2,6 @@ import pytest
 
 from app.models_db import GamePlayerResult, GameSession, Player, User
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------

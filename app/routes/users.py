@@ -48,7 +48,9 @@ async def create_player(
     db.add(player)
     await db.commit()
     await db.refresh(player)
-    return PlayerOut(id=player.id, name=player.name, telegram_id=player.telegram_id, token=player.token)
+    return PlayerOut(
+        id=player.id, name=player.name, telegram_id=player.telegram_id, token=player.token
+    )
 
 
 @router.delete("/players/{player_id}", status_code=204)
