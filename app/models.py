@@ -18,8 +18,10 @@ class Difficulty(str, Enum):
 
 
 class Player(BaseModel):
+    id: str = ""
     name: str
-    telegram_id: int
+    telegram_id: int | None = None
+    token: str = ""
 
 
 class StartGameRequest(BaseModel):

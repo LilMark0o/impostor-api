@@ -29,7 +29,8 @@ class Player(Base):
         String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )
     name: Mapped[str] = mapped_column(String, nullable=False)
-    telegram_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    telegram_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    token: Mapped[str] = mapped_column(String, unique=True, nullable=False, default=_new_uuid)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
     user: Mapped["User"] = relationship("User", back_populates="players")
