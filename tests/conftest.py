@@ -4,6 +4,7 @@ import pytest
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
+from app.auth import get_current_user
 from app.db import Base, get_db
 from app.main import app
 
@@ -34,6 +35,23 @@ async def client(db_session):
         yield db_session
 
     app.dependency_overrides[get_db] = override_db
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+        yield c
+    app.dependency_overrides.clear()
+
+
+@pytest.fixture
+async def auth_client(db_session):
+    """Client with auth bypassed — for endpoints that require a logged-in user."""
+
+    async def override_db():
+        yield db_session
+
+    async def override_auth():
+        return "test-user-id"
+
+    app.dependency_overrides[get_db] = override_db
+    app.dependency_overrides[get_current_user] = override_auth
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
         yield c
     app.dependency_overrides.clear()
