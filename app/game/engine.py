@@ -48,8 +48,21 @@ class GameEngine:
             word = await self._llm.pick_word(category)
         except Exception as e:
             print(f"[LLM pick_word failed] {e} — using fallback word")
-            _FALLBACK = ["perro", "mango", "Francia", "chef", "Nike"]
-            word = random.choice(_FALLBACK)
+            _FALLBACK: dict[str, list[str]] = {
+                "animal": ["León", "Jirafa", "Pingüino"],
+                "país": ["Brasil", "Japón", "Alemania"],
+                "fruta": ["Mango", "Sandía", "Maracuyá"],
+                "profesión": ["Arquitecto", "Enfermero", "Piloto"],
+                "marca de ropa": ["Nike", "Adidas", "Zara"],
+                "comida colombiana": ["Arepas", "Bandeja paisa", "Sancocho"],
+                "ciudad de Colombia": ["Medellín", "Cartagena", "Cali"],
+                "superhéroe": ["Batman", "Spider-Man", "Wonder Woman"],
+                "empresa de tecnología": ["Google", "Apple", "Amazon"],
+                "marca de carros": ["Toyota", "BMW", "Ferrari"],
+                "jugador de fútbol famoso": ["Messi", "Ronaldo", "Neymar"],
+            }
+            defaults = ["Messi", "Google", "Brasil", "León", "Nike"]
+            word = random.choice(_FALLBACK.get(category, defaults))
 
         assignments = await assign_roles(
             players=players,
