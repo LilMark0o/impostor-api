@@ -18,8 +18,15 @@ HINT_PROMPTS = {
 }
 
 _SOLO_PALABRA = (
-    "Responde SOLO con una palabra específica y concreta, sin puntuación ni explicación."
+    "Reply with exactly ONE word. No punctuation, no explanation, no sentences. "
+    "Just the word itself."
 )
+
+
+def _first_word(text: str) -> str:
+    """Extract the first token from a model response, stripping punctuation."""
+    clean = text.strip().split()[0] if text.strip() else text
+    return clean.strip(".,!?;:'\"()[]").lower()
 
 
 class OpenRouterProvider:
@@ -41,7 +48,7 @@ class OpenRouterProvider:
             ],
             max_tokens=10,
         )
-        return resp.choices[0].message.content.strip().lower()
+        return _first_word(resp.choices[0].message.content)
 
     async def pick_hint(self, category: str, word: str, difficulty: str, exclude: list[str]) -> str:
         system = HINT_PROMPTS.get(difficulty, HINT_PROMPTS["dificil"])
@@ -72,4 +79,4 @@ class OpenRouterProvider:
             ],
             max_tokens=10,
         )
-        return resp.choices[0].message.content.strip().lower()
+        return _first_word(resp.choices[0].message.content)
