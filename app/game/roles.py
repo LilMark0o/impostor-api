@@ -28,7 +28,7 @@ async def assign_roles(
     if mode == Mode.clasico:
         n_impostors = 1
     elif mode in (Mode.caos, Mode.ciego):
-        n_impostors = random.randint(0, len(shuffled))
+        n_impostors = random.randint(1, max(1, len(shuffled) // 2))
     elif mode == Mode.aliados:
         n_impostors = 2
     elif mode == Mode.espejo:

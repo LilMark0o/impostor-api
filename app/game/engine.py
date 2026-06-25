@@ -83,7 +83,9 @@ class GameEngine:
 
         player_tokens: list[PlayerTokenOut] = []
         for assignment in assignments:
-            if assignment.player.id:
+            # Only persist result when player has a real DB entry (token proves it).
+            # id alone is not enough: anonymous players carry a client-generated UUID.
+            if assignment.player.id and assignment.player.token:
                 category_shown = assignment.word if not assignment.is_impostor else ""
                 result = GamePlayerResult(
                     id=_new_uuid(),
@@ -94,8 +96,13 @@ class GameEngine:
                     category_shown=category_shown,
                 )
                 self._db.add(result)
+            # Always return a token so the frontend can render a QR link.
+            # Anonymous players get an ephemeral UUID (not in DB; reveal will return 404).
             player_tokens.append(
-                PlayerTokenOut(name=assignment.player.name, token=assignment.player.token)
+                PlayerTokenOut(
+                    name=assignment.player.name,
+                    token=assignment.player.token or _new_uuid(),
+                )
             )
 
         await self._db.commit()
