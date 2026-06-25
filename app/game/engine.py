@@ -44,7 +44,12 @@ class GameEngine:
         user_id: str | None = None,
     ) -> StartGameResponse:
         category = random.choice(categories)
-        word = await self._llm.pick_word(category)
+        try:
+            word = await self._llm.pick_word(category)
+        except Exception as e:
+            print(f"[LLM pick_word failed] {e} — using fallback word")
+            _FALLBACK = ["perro", "mango", "Francia", "chef", "Nike"]
+            word = random.choice(_FALLBACK)
 
         assignments = await assign_roles(
             players=players,

@@ -46,14 +46,22 @@ async def assign_roles(
     mirror_words: dict[str, str] = {}
     if mode == Mode.espejo:
         for p in shuffled[:n_impostors]:
-            mirror_words[p.name] = await llm.pick_mirror_word(category, exclude=word)
+            try:
+                mirror_words[p.name] = await llm.pick_mirror_word(category, exclude=word)
+            except Exception as e:
+                print(f"[LLM pick_mirror_word failed] {e} — using fallback")
+                mirror_words[p.name] = word + "2"
 
     used_hints: list[str] = []
     assignments: list[RoleAssignment] = []
 
     for player in shuffled:
         if player.name in impostors:
-            hint = await llm.pick_hint(category, word, difficulty, exclude=used_hints)
+            try:
+                hint = await llm.pick_hint(category, word, difficulty, exclude=used_hints)
+            except Exception as e:
+                print(f"[LLM pick_hint failed] {e} — using fallback")
+                hint = "pista"
             used_hints.append(hint)
             assignments.append(
                 RoleAssignment(

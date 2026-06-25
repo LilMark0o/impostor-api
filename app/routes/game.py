@@ -1,4 +1,6 @@
-from fastapi import APIRouter, Depends
+import traceback
+
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth import get_current_user_optional
@@ -25,10 +27,15 @@ async def start_game(
 ):
     categories = req.categories or DEFAULT_CATEGORIES
     engine = GameEngine(llm=get_llm(), messaging=get_messaging(), db=db)
-    return await engine.run(
-        players=req.players,
-        categories=categories,
-        mode=req.mode,
-        difficulty=req.difficulty,
-        user_id=user_id,
-    )
+    try:
+        return await engine.run(
+            players=req.players,
+            categories=categories,
+            mode=req.mode,
+            difficulty=req.difficulty,
+            user_id=user_id,
+        )
+    except Exception as exc:
+        tb = traceback.format_exc()
+        print(f"[game/start ERROR]\n{tb}")
+        raise HTTPException(status_code=500, detail=f"{type(exc).__name__}: {exc}")
