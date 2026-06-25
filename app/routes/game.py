@@ -19,19 +19,6 @@ async def get_categories():
     return {"categories": DEFAULT_CATEGORIES}
 
 
-@router.get("/llm-health")
-async def llm_health():
-    """Diagnose LLM connectivity — remove after debugging."""
-    import os
-    llm = get_llm()
-    key = os.getenv("OPENROUTER_API_KEY", "")
-    try:
-        word = await llm.pick_word("animal")
-        return {"ok": True, "word": word, "key_prefix": key[:8] if key else "MISSING"}
-    except Exception as exc:
-        return {"ok": False, "error": str(exc), "key_prefix": key[:8] if key else "MISSING"}
-
-
 @router.post("/game/start", response_model=StartGameResponse)
 async def start_game(
     req: StartGameRequest,

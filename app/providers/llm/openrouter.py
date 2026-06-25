@@ -1,3 +1,5 @@
+import asyncio
+
 from openai import AsyncOpenAI
 
 from app.config import OPENROUTER_API_KEY, OPENROUTER_MODEL
@@ -22,20 +24,30 @@ _SOLO_PALABRA = (
     "Just the word itself."
 )
 
-# Models tried in order when one is rate-limited or unavailable
-_FALLBACK_MODELS = [
+# Models tried in order when one has no endpoints (404)
+_MODEL_CHAIN = [
     OPENROUTER_MODEL,
     "meta-llama/llama-3.2-3b-instruct:free",
     "google/gemma-4-26b-a4b-it:free",
     "nvidia/nemotron-3-super-120b-a12b:free",
-    "qwen/qwen3-next-80b-a3b-instruct:free",
 ]
+
+_MAX_WAIT = 35  # seconds to honor Retry-After for 429s
 
 
 def _first_word(text: str) -> str:
     """Extract the first token from a model response, stripping punctuation."""
     clean = text.strip().split()[0] if text.strip() else text
     return clean.strip(".,!?;:'\"()[]").lower()
+
+
+def _retry_after(exc: Exception) -> float | None:
+    """Extract retry_after_seconds from an OpenAI-wrapped 429 error, if present."""
+    try:
+        body = exc.body  # type: ignore[attr-defined]
+        return float(body["error"]["metadata"]["retry_after_seconds"])
+    except Exception:
+        return None
 
 
 class OpenRouterProvider:
@@ -46,24 +58,36 @@ class OpenRouterProvider:
         )
 
     async def _complete(self, messages: list[dict], max_tokens: int = 10) -> str:
-        """Try models in order, returning first successful response."""
-        last_err: Exception | None = None
+        """Try models in order; on 429 honor Retry-After then retry same model once."""
         seen: set[str] = set()
-        for model in _FALLBACK_MODELS:
+        last_err: Exception | None = None
+
+        for model in _MODEL_CHAIN:
             if model in seen:
                 continue
             seen.add(model)
-            try:
-                resp = await self._client.chat.completions.create(
-                    model=model,
-                    messages=messages,
-                    max_tokens=max_tokens,
-                )
-                print(f"[LLM] model={model} ok")
-                return resp.choices[0].message.content
-            except Exception as e:
-                print(f"[LLM] model={model} failed: {e}")
-                last_err = e
+
+            for attempt in range(2):  # each model gets one retry after Retry-After
+                try:
+                    resp = await self._client.chat.completions.create(
+                        model=model,
+                        messages=messages,
+                        max_tokens=max_tokens,
+                    )
+                    print(f"[LLM] model={model} attempt={attempt} ok")
+                    return resp.choices[0].message.content
+                except Exception as e:
+                    status = getattr(e, "status_code", None)
+                    print(f"[LLM] model={model} attempt={attempt} status={status}: {str(e)[:120]}")
+                    if status == 429 and attempt == 0:
+                        wait = min(_retry_after(e) or 30, _MAX_WAIT)
+                        print(f"[LLM] 429 — waiting {wait}s then retrying same model")
+                        await asyncio.sleep(wait)
+                        continue  # retry same model
+                    # 404 (no endpoints) or second 429 → try next model
+                    last_err = e
+                    break
+
         raise last_err or RuntimeError("All LLM models failed")
 
     async def pick_word(self, category: str) -> str:
