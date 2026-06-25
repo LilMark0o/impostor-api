@@ -6,6 +6,7 @@ from app.db import _new_uuid
 from app.game.roles import RoleAssignment, assign_roles
 from app.models import Difficulty, Mode, Player, PlayerTokenOut, StartGameResponse
 from app.models_db import GamePlayerResult, GameSession
+from app.models_db import Player as PlayerRecord
 from app.providers.llm import LLMProvider
 from app.providers.messaging import MessagingProvider
 
@@ -70,7 +71,29 @@ class GameEngine:
             role = "IMPOSTOR" if assignment.is_impostor else "jugador"
             print(f"  {status} {assignment.player.name} ({role})")
 
-        # Persist game session + per-player results (only for players with a real DB id)
+        # Ensure every player has a DB record so the reveal endpoint can find them.
+        # Logged-in players already have id+token from the DB.
+        # Anonymous players (no token) get a new DB record with user_id=None.
+        resolved: list[tuple[str, str]] = []  # (player_id, player_token) per assignment
+        for assignment in assignments:
+            if assignment.player.token:
+                resolved.append((assignment.player.id, assignment.player.token))
+            else:
+                pid, ptok = _new_uuid(), _new_uuid()
+                self._db.add(
+                    PlayerRecord(
+                        id=pid,
+                        user_id=None,
+                        name=assignment.player.name,
+                        telegram_id=assignment.player.telegram_id,
+                        token=ptok,
+                    )
+                )
+                resolved.append((pid, ptok))
+
+        # Flush so the player rows exist before GamePlayerResult FKs reference them.
+        await self._db.flush()
+
         session = GameSession(
             id=_new_uuid(),
             user_id=user_id,
@@ -82,28 +105,19 @@ class GameEngine:
         self._db.add(session)
 
         player_tokens: list[PlayerTokenOut] = []
-        for assignment in assignments:
-            # Only persist result when player has a real DB entry (token proves it).
-            # id alone is not enough: anonymous players carry a client-generated UUID.
-            if assignment.player.id and assignment.player.token:
-                category_shown = assignment.word if not assignment.is_impostor else ""
-                result = GamePlayerResult(
+        for assignment, (pid, ptok) in zip(assignments, resolved):
+            category_shown = assignment.word if not assignment.is_impostor else ""
+            self._db.add(
+                GamePlayerResult(
                     id=_new_uuid(),
                     session_id=session.id,
-                    player_id=assignment.player.id,
+                    player_id=pid,
                     player_name=assignment.player.name,
                     is_impostor=assignment.is_impostor,
                     category_shown=category_shown,
                 )
-                self._db.add(result)
-            # Always return a token so the frontend can render a QR link.
-            # Anonymous players get an ephemeral UUID (not in DB; reveal will return 404).
-            player_tokens.append(
-                PlayerTokenOut(
-                    name=assignment.player.name,
-                    token=assignment.player.token or _new_uuid(),
-                )
             )
+            player_tokens.append(PlayerTokenOut(name=assignment.player.name, token=ptok))
 
         await self._db.commit()
 
