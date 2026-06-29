@@ -36,6 +36,11 @@ class GameEngine:
         self._messaging = messaging
         self._db = db
 
+    def _new_anon_player(self, p: Player) -> tuple[str, str]:
+        pid, ptok = _new_uuid(), _new_uuid()
+        self._db.add(PlayerRecord(id=pid, user_id=None, name=p.name, telegram_id=p.telegram_id, token=ptok))
+        return pid, ptok
+
     async def run(
         self,
         players: list[Player],
@@ -109,31 +114,10 @@ class GameEngine:
                 if existing:
                     resolved.append((existing.id, existing.token))
                 else:
-                    # Stale token not in DB — create fresh record
-                    pid, ptok = _new_uuid(), _new_uuid()
-                    self._db.add(
-                        PlayerRecord(
-                            id=pid,
-                            user_id=None,
-                            name=p.name,
-                            telegram_id=p.telegram_id,
-                            token=ptok,
-                        )
-                    )
-                    resolved.append((pid, ptok))
+                    resolved.append(self._new_anon_player(p))
             else:
                 # Case (c): new anonymous player — create fresh record
-                pid, ptok = _new_uuid(), _new_uuid()
-                self._db.add(
-                    PlayerRecord(
-                        id=pid,
-                        user_id=None,
-                        name=p.name,
-                        telegram_id=p.telegram_id,
-                        token=ptok,
-                    )
-                )
-                resolved.append((pid, ptok))
+                resolved.append(self._new_anon_player(p))
 
         # Flush so the player rows exist before GamePlayerResult FKs reference them.
         await self._db.flush()
