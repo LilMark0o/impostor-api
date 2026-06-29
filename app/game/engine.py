@@ -1,5 +1,6 @@
 import random
 
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import _new_uuid
@@ -90,20 +91,45 @@ class GameEngine:
             print(f"  {status} {assignment.player.name} ({role})")
 
         # Ensure every player has a DB record so the reveal endpoint can find them.
-        # Logged-in players already have id+token from the DB.
-        # Anonymous players (no token) get a new DB record with user_id=None.
+        # Case (a): logged-in player — id and token both present, use directly.
+        # Case (b): anonymous with stored token — look up existing PlayerRecord by token.
+        # Case (c): brand-new anonymous player — create a fresh DB record.
         resolved: list[tuple[str, str]] = []  # (player_id, player_token) per assignment
         for assignment in assignments:
-            if assignment.player.token:
-                resolved.append((assignment.player.id, assignment.player.token))
+            p = assignment.player
+            if p.id and p.token:
+                # Case (a): logged-in player
+                resolved.append((p.id, p.token))
+            elif p.token:
+                # Case (b): anonymous player returning with a stored token
+                row = await self._db.execute(
+                    select(PlayerRecord).where(PlayerRecord.token == p.token)
+                )
+                existing = row.scalar_one_or_none()
+                if existing:
+                    resolved.append((existing.id, existing.token))
+                else:
+                    # Stale token not in DB — create fresh record
+                    pid, ptok = _new_uuid(), _new_uuid()
+                    self._db.add(
+                        PlayerRecord(
+                            id=pid,
+                            user_id=None,
+                            name=p.name,
+                            telegram_id=p.telegram_id,
+                            token=ptok,
+                        )
+                    )
+                    resolved.append((pid, ptok))
             else:
+                # Case (c): new anonymous player — create fresh record
                 pid, ptok = _new_uuid(), _new_uuid()
                 self._db.add(
                     PlayerRecord(
                         id=pid,
                         user_id=None,
-                        name=assignment.player.name,
-                        telegram_id=assignment.player.telegram_id,
+                        name=p.name,
+                        telegram_id=p.telegram_id,
                         token=ptok,
                     )
                 )
