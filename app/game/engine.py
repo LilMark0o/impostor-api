@@ -38,7 +38,9 @@ class GameEngine:
 
     def _new_anon_player(self, p: Player) -> tuple[str, str]:
         pid, ptok = _new_uuid(), _new_uuid()
-        self._db.add(PlayerRecord(id=pid, user_id=None, name=p.name, telegram_id=p.telegram_id, token=ptok))
+        self._db.add(
+            PlayerRecord(id=pid, user_id=None, name=p.name, telegram_id=p.telegram_id, token=ptok)
+        )
         return pid, ptok
 
     async def run(

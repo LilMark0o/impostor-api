@@ -93,7 +93,7 @@ class OpenRouterProvider:
     async def pick_word(self, category: str) -> str:
         text = await self._complete([
             {"role": "system", "content": _SOLO_PALABRA},
-            {"role": "user", "content": f"Dame una palabra específica de la categoría '{category}'."},
+            {"role": "user", "content": f"Dame una palabra de la categoría '{category}'."},
         ])
         return _first_word(text)
 

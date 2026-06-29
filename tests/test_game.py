@@ -73,7 +73,10 @@ async def test_anonymous_token_reuse(client, mock_llm, mock_messaging):
     ):
         r1 = await client.post(
             "/api/game/start",
-            json={"players": [{"name": "Marco", "id": "", "telegram_id": None, "token": ""}], "mode": "clasico"},
+            json={
+                "players": [{"name": "Marco", "id": "", "telegram_id": None, "token": ""}],
+                "mode": "clasico",
+            },
         )
     assert r1.status_code == 200
     token = next(p["token"] for p in r1.json()["players"] if p["name"] == "Marco")
@@ -85,7 +88,10 @@ async def test_anonymous_token_reuse(client, mock_llm, mock_messaging):
     ):
         r2 = await client.post(
             "/api/game/start",
-            json={"players": [{"name": "Marco", "id": "", "telegram_id": None, "token": token}], "mode": "caos"},
+            json={
+                "players": [{"name": "Marco", "id": "", "telegram_id": None, "token": token}],
+                "mode": "caos",
+            },
         )
     assert r2.status_code == 200
     token2 = next(p["token"] for p in r2.json()["players"] if p["name"] == "Marco")
@@ -101,9 +107,14 @@ async def test_stale_token_creates_fresh(client, mock_llm, mock_messaging):
     ):
         r = await client.post(
             "/api/game/start",
-            json={"players": [{"name": "Ghost", "id": "", "telegram_id": None, "token": "nonexistent-token-xyz"}], "mode": "clasico"},
+            json={
+                "players": [
+                    {"name": "Ghost", "id": "", "telegram_id": None, "token": "stale-tok-xyz"}
+                ],
+                "mode": "clasico",
+            },
         )
     assert r.status_code == 200
     ghost = next(p for p in r.json()["players"] if p["name"] == "Ghost")
-    assert ghost["token"] != "nonexistent-token-xyz"
+    assert ghost["token"] != "stale-tok-xyz"
     assert ghost["token"] != ""

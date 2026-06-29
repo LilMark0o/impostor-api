@@ -37,7 +37,7 @@ class OpenAIProvider:
             model=OPENAI_MODEL,
             messages=[
                 {"role": "system", "content": _SOLO_PALABRA},
-                {"role": "user", "content": f"Dame una palabra específica de la categoría '{category}'."},
+                {"role": "user", "content": f"Dame una palabra de la categoría '{category}'."},
             ],
             max_tokens=10,
         )
