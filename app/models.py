@@ -9,6 +9,10 @@ class Mode(str, Enum):
     ciego = "ciego"  # random N, nobody knows how many
     aliados = "aliados"  # 2 impostors know each other
     espejo = "espejo"  # impostor gets a different word from same category
+    infiltrados = "infiltrados"
+    aleatorio = "aleatorio"
+    sin_impostores = "sin_impostores"   # internal; only reachable via aleatorio
+    todos_impostores = "todos_impostores"  # internal; only reachable via aleatorio
 
 
 class Difficulty(str, Enum):
@@ -29,6 +33,8 @@ class StartGameRequest(BaseModel):
     mode: Mode = Mode.caos
     difficulty: Difficulty = Difficulty.dificil
     categories: list[str] | None = None
+    show_category_to_impostor: bool = True
+    show_impostor_count: bool = True
 
 
 class PlayerTokenOut(BaseModel):
