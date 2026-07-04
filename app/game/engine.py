@@ -12,7 +12,6 @@ from app.models_db import Player as PlayerRecord
 from app.providers.llm import LLMProvider
 from app.providers.messaging import MessagingProvider
 
-
 _INTERNAL_MODES = frozenset({Mode.sin_impostores, Mode.todos_impostores})
 
 _ALEATORIO_POOL = [

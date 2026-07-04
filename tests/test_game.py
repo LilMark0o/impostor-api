@@ -131,7 +131,7 @@ def test_new_mode_enum_values():
 @pytest.mark.asyncio
 async def test_assign_roles_infiltrados(mock_llm):
     from app.game.roles import assign_roles
-    from app.models import Mode, Player, Difficulty
+    from app.models import Difficulty, Mode, Player
     players = [
         Player(name="A"), Player(name="B"), Player(name="C"),
         Player(name="D"), Player(name="E"),
@@ -154,7 +154,7 @@ async def test_assign_roles_infiltrados(mock_llm):
 @pytest.mark.asyncio
 async def test_assign_roles_sin_impostores(mock_llm):
     from app.game.roles import assign_roles
-    from app.models import Mode, Player, Difficulty
+    from app.models import Difficulty, Mode, Player
     players = [Player(name="A"), Player(name="B"), Player(name="C")]
     result = await assign_roles(
         players=players, mode=Mode.sin_impostores,
@@ -168,7 +168,7 @@ async def test_assign_roles_sin_impostores(mock_llm):
 @pytest.mark.asyncio
 async def test_assign_roles_todos_impostores(mock_llm):
     from app.game.roles import assign_roles
-    from app.models import Mode, Player, Difficulty
+    from app.models import Difficulty, Mode, Player
     players = [Player(name="A"), Player(name="B"), Player(name="C")]
     result = await assign_roles(
         players=players, mode=Mode.todos_impostores,
