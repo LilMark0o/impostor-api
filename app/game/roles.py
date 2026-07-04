@@ -33,6 +33,12 @@ async def assign_roles(
         n_impostors = 2
     elif mode == Mode.espejo:
         n_impostors = random.randint(1, max(1, len(shuffled) // 2))
+    elif mode == Mode.infiltrados:
+        n_impostors = 2
+    elif mode == Mode.sin_impostores:
+        n_impostors = 0
+    elif mode == Mode.todos_impostores:
+        n_impostors = len(shuffled)
     else:
         n_impostors = 1
 
@@ -44,34 +50,50 @@ async def assign_roles(
     )
 
     mirror_words: dict[str, str] = {}
-    if mode == Mode.espejo:
+    if mode in (Mode.espejo, Mode.infiltrados):
         for p in shuffled[:n_impostors]:
             try:
                 mirror_words[p.name] = await llm.pick_mirror_word(category, exclude=word)
             except Exception as e:
                 print(f"[LLM pick_mirror_word failed] {e} — using fallback")
-                mirror_words[p.name] = word + "2"
+                mirror_words[p.name] = word + "_alt"
 
     used_hints: list[str] = []
     assignments: list[RoleAssignment] = []
 
     for player in shuffled:
         if player.name in impostors:
-            try:
-                hint = await llm.pick_hint(category, word, difficulty, exclude=used_hints)
-            except Exception as e:
-                print(f"[LLM pick_hint failed] {e} — using fallback")
-                hint = "pista"
-            used_hints.append(hint)
-            assignments.append(
-                RoleAssignment(
-                    player=player,
-                    is_impostor=True,
-                    word=mirror_words.get(player.name, word),
-                    hint=hint,
-                    accomplice=accomplices.get(player.name),
+            if mode == Mode.todos_impostores:
+                try:
+                    hint = await llm.pick_hint(category, word, difficulty, exclude=used_hints)
+                except Exception as e:
+                    print(f"[LLM pick_hint failed] {e} — using fallback")
+                    hint = "pista"
+                used_hints.append(hint)
+                assignments.append(
+                    RoleAssignment(
+                        player=player,
+                        is_impostor=True,
+                        word="",
+                        hint=hint,
+                    )
                 )
-            )
+            else:
+                try:
+                    hint = await llm.pick_hint(category, word, difficulty, exclude=used_hints)
+                except Exception as e:
+                    print(f"[LLM pick_hint failed] {e} — using fallback")
+                    hint = "pista"
+                used_hints.append(hint)
+                assignments.append(
+                    RoleAssignment(
+                        player=player,
+                        is_impostor=True,
+                        word=mirror_words.get(player.name, word),
+                        hint=hint,
+                        accomplice=accomplices.get(player.name),
+                    )
+                )
         else:
             assignments.append(
                 RoleAssignment(

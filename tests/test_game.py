@@ -128,6 +128,60 @@ def test_new_mode_enum_values():
     assert Mode.todos_impostores.value == "todos_impostores"
 
 
+@pytest.mark.asyncio
+async def test_assign_roles_infiltrados(mock_llm):
+    from app.game.roles import assign_roles
+    from app.models import Mode, Player, Difficulty
+    players = [
+        Player(name="A"), Player(name="B"), Player(name="C"),
+        Player(name="D"), Player(name="E"),
+    ]
+    result = await assign_roles(
+        players=players, mode=Mode.infiltrados,
+        category="animal", word="perro",
+        difficulty=Difficulty.dificil.value, llm=mock_llm,
+    )
+    impostors = [r for r in result if r.is_impostor]
+    assert len(impostors) == 2
+    # each impostor gets mirror word (mock returns "gato")
+    for r in impostors:
+        assert r.word == "gato"
+    # no accomplice info (infiltrados are solo, not allied)
+    for r in impostors:
+        assert r.accomplice is None
+
+
+@pytest.mark.asyncio
+async def test_assign_roles_sin_impostores(mock_llm):
+    from app.game.roles import assign_roles
+    from app.models import Mode, Player, Difficulty
+    players = [Player(name="A"), Player(name="B"), Player(name="C")]
+    result = await assign_roles(
+        players=players, mode=Mode.sin_impostores,
+        category="animal", word="perro",
+        difficulty=Difficulty.dificil.value, llm=mock_llm,
+    )
+    assert all(not r.is_impostor for r in result)
+    assert all(r.word == "perro" for r in result)
+
+
+@pytest.mark.asyncio
+async def test_assign_roles_todos_impostores(mock_llm):
+    from app.game.roles import assign_roles
+    from app.models import Mode, Player, Difficulty
+    players = [Player(name="A"), Player(name="B"), Player(name="C")]
+    result = await assign_roles(
+        players=players, mode=Mode.todos_impostores,
+        category="animal", word="perro",
+        difficulty=Difficulty.dificil.value, llm=mock_llm,
+    )
+    assert all(r.is_impostor for r in result)
+    # word is empty — not revealed
+    assert all(r.word == "" for r in result)
+    # each gets their own hint (mock returns "fiel")
+    assert all(r.hint == "fiel" for r in result)
+
+
 def test_start_game_request_new_fields():
     from app.models import StartGameRequest
     req = StartGameRequest(
