@@ -195,3 +195,138 @@ def test_start_game_request_new_fields():
     req2 = StartGameRequest(players=[])
     assert req2.show_category_to_impostor is True
     assert req2.show_impostor_count is True
+
+
+@pytest.mark.asyncio
+async def test_infiltrados_integration(client, mock_llm, mock_messaging):
+    """infiltrados: 2 impostors with mirror words, no accomplice info."""
+    with (
+        patch("app.routes.game.get_llm", return_value=mock_llm),
+        patch("app.routes.game.get_messaging", return_value=mock_messaging),
+    ):
+        r = await client.post(
+            "/api/game/start",
+            json={
+                "players": [
+                    {"name": "A", "id": "", "telegram_id": None, "token": ""},
+                    {"name": "B", "id": "", "telegram_id": None, "token": ""},
+                    {"name": "C", "id": "", "telegram_id": None, "token": ""},
+                    {"name": "D", "id": "", "telegram_id": None, "token": ""},
+                    {"name": "E", "id": "", "telegram_id": None, "token": ""},
+                ],
+                "mode": "infiltrados",
+            },
+        )
+    assert r.status_code == 200
+    data = r.json()
+    assert data["n_impostors"] == 2
+    assert data["mode"] == "infiltrados"
+
+
+@pytest.mark.asyncio
+async def test_aliados_guard(client, mock_llm, mock_messaging):
+    """aliados with 3 players → 400."""
+    with (
+        patch("app.routes.game.get_llm", return_value=mock_llm),
+        patch("app.routes.game.get_messaging", return_value=mock_messaging),
+    ):
+        r = await client.post(
+            "/api/game/start",
+            json={
+                "players": [
+                    {"name": "A", "id": "", "telegram_id": None, "token": ""},
+                    {"name": "B", "id": "", "telegram_id": None, "token": ""},
+                    {"name": "C", "id": "", "telegram_id": None, "token": ""},
+                ],
+                "mode": "aliados",
+            },
+        )
+    assert r.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_infiltrados_guard(client, mock_llm, mock_messaging):
+    """infiltrados with 4 players → 400."""
+    with (
+        patch("app.routes.game.get_llm", return_value=mock_llm),
+        patch("app.routes.game.get_messaging", return_value=mock_messaging),
+    ):
+        r = await client.post(
+            "/api/game/start",
+            json={
+                "players": [
+                    {"name": "A", "id": "", "telegram_id": None, "token": ""},
+                    {"name": "B", "id": "", "telegram_id": None, "token": ""},
+                    {"name": "C", "id": "", "telegram_id": None, "token": ""},
+                    {"name": "D", "id": "", "telegram_id": None, "token": ""},
+                ],
+                "mode": "infiltrados",
+            },
+        )
+    assert r.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_internal_mode_blocked(client, mock_llm, mock_messaging):
+    """sin_impostores and todos_impostores cannot be selected directly."""
+    with (
+        patch("app.routes.game.get_llm", return_value=mock_llm),
+        patch("app.routes.game.get_messaging", return_value=mock_messaging),
+    ):
+        for internal_mode in ("sin_impostores", "todos_impostores"):
+            r = await client.post(
+                "/api/game/start",
+                json={
+                    "players": [
+                        {"name": "A", "id": "", "telegram_id": None, "token": ""},
+                        {"name": "B", "id": "", "telegram_id": None, "token": ""},
+                        {"name": "C", "id": "", "telegram_id": None, "token": ""},
+                    ],
+                    "mode": internal_mode,
+                },
+            )
+            assert r.status_code == 400, f"{internal_mode} should be blocked"
+
+
+@pytest.mark.asyncio
+async def test_aleatorio_resolves(client, mock_llm, mock_messaging):
+    """aleatorio mode returns a resolved mode (not 'aleatorio') in the response."""
+    with (
+        patch("app.routes.game.get_llm", return_value=mock_llm),
+        patch("app.routes.game.get_messaging", return_value=mock_messaging),
+    ):
+        r = await client.post(
+            "/api/game/start",
+            json={
+                "players": [
+                    {"name": "A", "id": "", "telegram_id": None, "token": ""},
+                    {"name": "B", "id": "", "telegram_id": None, "token": ""},
+                    {"name": "C", "id": "", "telegram_id": None, "token": ""},
+                ],
+                "mode": "aleatorio",
+            },
+        )
+    assert r.status_code == 200
+    assert r.json()["mode"] != "aleatorio"
+
+
+@pytest.mark.asyncio
+async def test_show_category_false(client, mock_llm, mock_messaging):
+    """show_category_to_impostor=False: game starts successfully."""
+    with (
+        patch("app.routes.game.get_llm", return_value=mock_llm),
+        patch("app.routes.game.get_messaging", return_value=mock_messaging),
+    ):
+        r = await client.post(
+            "/api/game/start",
+            json={
+                "players": [
+                    {"name": "A", "id": "", "telegram_id": None, "token": ""},
+                    {"name": "B", "id": "", "telegram_id": None, "token": ""},
+                    {"name": "C", "id": "", "telegram_id": None, "token": ""},
+                ],
+                "mode": "clasico",
+                "show_category_to_impostor": False,
+            },
+        )
+    assert r.status_code == 200

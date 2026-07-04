@@ -1,5 +1,6 @@
 import random
 
+from fastapi import HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -12,19 +13,57 @@ from app.providers.llm import LLMProvider
 from app.providers.messaging import MessagingProvider
 
 
-def _build_message(assignment: RoleAssignment, mode: Mode, category: str, n_impostors: int) -> str:
-    if not assignment.is_impostor:
-        return f"🎯 *Categoría:* {category}\n🔤 *Tu palabra:* {assignment.word.upper()}"
+_INTERNAL_MODES = frozenset({Mode.sin_impostores, Mode.todos_impostores})
 
-    lines = [f"🎭 *¡Eres el IMPOSTOR!*\n\n📂 {category} — [{assignment.hint}]"]
+_ALEATORIO_POOL = [
+    Mode.clasico,
+    Mode.caos,
+    Mode.aliados,
+    Mode.espejo,
+    Mode.infiltrados,
+    Mode.sin_impostores,
+    Mode.todos_impostores,
+]
+
+
+def _mode_is_eligible(m: Mode, n: int) -> bool:
+    if m == Mode.aliados:
+        return n >= 4
+    if m == Mode.infiltrados:
+        return n >= 5
+    return True
+
+
+def _build_message(
+    assignment: RoleAssignment,
+    mode: Mode,
+    category: str,
+    n_impostors: int,
+    show_category_to_impostor: bool = True,
+    show_impostor_count: bool = True,
+) -> str:
+    if not assignment.is_impostor:
+        return (
+            f"🎯 *Categoría:* {category}\n🔤 *Tu palabra:* {assignment.word.upper()}"
+        )
+
+    if mode == Mode.todos_impostores:
+        return f"🎭 *¡Todos son impostores!*\n\n📂 {category} — [{assignment.hint}]"
+
+    lines = ["🎭 *¡Eres el IMPOSTOR!*"]
+
+    if show_category_to_impostor:
+        lines.append(f"\n📂 {category} — [{assignment.hint}]")
+    else:
+        lines.append(f"\n🕵️ Pista: [{assignment.hint}]")
 
     if mode == Mode.aliados and assignment.accomplice:
         lines.append(f"🤝 *Tu cómplice:* {assignment.accomplice}")
 
-    if mode == Mode.espejo:
+    if mode in (Mode.espejo, Mode.infiltrados):
         lines.append(f"🪞 *Tu palabra (diferente):* {assignment.word.upper()}")
 
-    if mode != Mode.ciego:
+    if show_impostor_count:
         lines.append(f"👥 *Impostores en juego:* {n_impostors}")
 
     return "\n".join(lines)
@@ -50,7 +89,31 @@ class GameEngine:
         mode: Mode = Mode.caos,
         difficulty: Difficulty = Difficulty.dificil,
         user_id: str | None = None,
+        show_category_to_impostor: bool = True,
+        show_impostor_count: bool = True,
     ) -> StartGameResponse:
+        # Block internal modes from being requested directly
+        if mode in _INTERNAL_MODES:
+            raise HTTPException(
+                status_code=400, detail="This mode cannot be selected directly"
+            )
+
+        # Player-count guards
+        if mode == Mode.aliados and len(players) < 4:
+            raise HTTPException(
+                status_code=400, detail="aliados requires at least 4 players"
+            )
+        if mode == Mode.infiltrados and len(players) < 5:
+            raise HTTPException(
+                status_code=400, detail="infiltrados requires at least 5 players"
+            )
+
+        # Resolve aleatorio to a concrete mode
+        resolved_mode = mode
+        if mode == Mode.aleatorio:
+            eligible = [m for m in _ALEATORIO_POOL if _mode_is_eligible(m, len(players))]
+            resolved_mode = random.choice(eligible)
+
         category = random.choice(categories)
         try:
             word = await self._llm.pick_word(category)
@@ -74,7 +137,7 @@ class GameEngine:
 
         assignments = await assign_roles(
             players=players,
-            mode=mode,
+            mode=resolved_mode,
             category=category,
             word=word,
             difficulty=difficulty.value,
@@ -90,7 +153,10 @@ class GameEngine:
             if assignment.player.telegram_id is None:
                 failed.append(assignment.player.name)
                 continue
-            msg = _build_message(assignment, mode, category, n_impostors)
+            msg = _build_message(
+                assignment, resolved_mode, category, n_impostors,
+                show_category_to_impostor, show_impostor_count,
+            )
             ok = await self._messaging.send(assignment.player.telegram_id, msg)
             (sent if ok else failed).append(assignment.player.name)
             status = "✓" if ok else "✗"
@@ -128,7 +194,7 @@ class GameEngine:
             id=_new_uuid(),
             user_id=user_id,
             category=category,
-            mode=mode.value,
+            mode=resolved_mode.value,
             difficulty=difficulty.value,
             n_impostors=n_impostors,
         )
@@ -152,13 +218,13 @@ class GameEngine:
         await self._db.commit()
 
         print(
-            f"\nModo: {mode.value} | Categoría: {category} "
+            f"\nModo: {resolved_mode.value} | Categoría: {category} "
             f"| Palabra: {word} | Impostores: {n_impostors}"
         )
 
         return StartGameResponse(
             category=category,
-            mode=mode,
+            mode=resolved_mode,
             n_impostors=n_impostors,
             sent=sent,
             failed=failed,

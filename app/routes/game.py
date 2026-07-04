@@ -34,7 +34,11 @@ async def start_game(
             mode=req.mode,
             difficulty=req.difficulty,
             user_id=user_id,
+            show_category_to_impostor=req.show_category_to_impostor,
+            show_impostor_count=req.show_impostor_count,
         )
+    except HTTPException:
+        raise
     except Exception as exc:
         tb = traceback.format_exc()
         print(f"[game/start ERROR]\n{tb}")
