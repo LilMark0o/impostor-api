@@ -1,4 +1,4 @@
-import traceback
+import logging
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -10,7 +10,9 @@ from app.game.engine import GameEngine
 from app.models import StartGameRequest, StartGameResponse
 from app.providers.llm import get_provider as get_llm
 from app.providers.messaging import get_provider as get_messaging
+from app.validators import validate_custom_categories
 
+_LOG = logging.getLogger(__name__)
 router = APIRouter()
 
 
@@ -26,6 +28,10 @@ async def start_game(
     db: AsyncSession = Depends(get_db),
 ):
     categories = req.categories or DEFAULT_CATEGORIES
+
+    if req.categories:
+        await validate_custom_categories(req.categories)
+
     engine = GameEngine(llm=get_llm(), messaging=get_messaging(), db=db)
     try:
         return await engine.run(
@@ -39,7 +45,6 @@ async def start_game(
         )
     except HTTPException:
         raise
-    except Exception as exc:
-        tb = traceback.format_exc()
-        print(f"[game/start ERROR]\n{tb}")
-        raise HTTPException(status_code=500, detail=f"{type(exc).__name__}: {exc}")
+    except Exception:
+        _LOG.exception("Unexpected error in game/start")
+        raise HTTPException(status_code=500, detail="Error interno del servidor")

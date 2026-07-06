@@ -16,6 +16,14 @@ from app.routes.users import router as users_router  # noqa: E402
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    import logging
+
+    from app.config import JWT_SECRET_KEY
+
+    if JWT_SECRET_KEY == "dev-secret-change-in-prod":
+        logging.getLogger(__name__).critical(
+            "JWT_SECRET_KEY is using the insecure default — set this env var in Railway!"
+        )
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
     yield
