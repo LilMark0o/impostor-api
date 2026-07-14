@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth import get_current_user_optional
-from app.config import DEFAULT_CATEGORIES
+from app.config import CATEGORY_GROUPS, CATEGORY_PACKS, DEFAULT_CATEGORIES
 from app.db import get_db
 from app.game.engine import GameEngine
 from app.models import StartGameRequest, StartGameResponse
@@ -18,7 +18,11 @@ router = APIRouter()
 
 @router.get("/categories")
 async def get_categories():
-    return {"categories": DEFAULT_CATEGORIES}
+    return {
+        "categories": DEFAULT_CATEGORIES,
+        "groups": CATEGORY_GROUPS,
+        "packs": CATEGORY_PACKS,
+    }
 
 
 @router.post("/game/start", response_model=StartGameResponse)

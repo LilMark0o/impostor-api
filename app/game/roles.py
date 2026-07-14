@@ -103,4 +103,8 @@ async def assign_roles(
                 )
             )
 
+    # Shuffle so the impostor's position in the list is random.
+    # Without this, impostors always appear first because they are
+    # selected from shuffled[:n_impostors] and the loop preserves that order.
+    random.shuffle(assignments)
     return assignments

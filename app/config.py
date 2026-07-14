@@ -23,8 +23,65 @@ JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY", "dev-secret-change-in-prod")
 GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID", "")
 GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET", "")
 
-DEFAULT_CATEGORIES = [
-    "animal", "país", "fruta", "profesión", "marca de ropa",
-    "comida colombiana", "ciudad de Colombia", "superhéroe",
-    "empresa de tecnología", "marca de carros", "jugador de fútbol famoso",
-]
+CATEGORY_GROUPS: dict[str, list[str]] = {
+    "⚽ Fútbol": [
+        "jugador de fútbol famoso",
+        "ganador del Balón de Oro",
+        "club de fútbol europeo",
+        "selección nacional de fútbol",
+        "técnico de fútbol famoso",
+        "estadio de fútbol famoso",
+        "competición de fútbol",
+        "posición en el campo de fútbol",
+        "goleador histórico",
+    ],
+    "🌍 General": [
+        "animal",
+        "país",
+        "fruta",
+        "profesión",
+        "superhéroe",
+        "empresa de tecnología",
+        "marca de carros",
+        "comida colombiana",
+        "ciudad de Colombia",
+        "marca de ropa",
+    ],
+    "🎭 Cultura": [
+        "película famosa",
+        "serie de televisión",
+        "artista de música latina",
+        "videojuego famoso",
+    ],
+}
+
+CATEGORY_PACKS: dict[str, dict] = {
+    "balon_de_oro": {
+        "label": "Balón de Oro",
+        "emoji": "🏆",
+        "categories": [
+            "ganador del Balón de Oro",
+            "club de fútbol europeo",
+            "selección nacional de fútbol",
+            "técnico de fútbol famoso",
+            "estadio de fútbol famoso",
+        ],
+    },
+    "futbol": {
+        "label": "Fútbol completo",
+        "emoji": "⚽",
+        "categories": CATEGORY_GROUPS["⚽ Fútbol"],
+    },
+    "general": {
+        "label": "Modo clásico",
+        "emoji": "🎯",
+        "categories": CATEGORY_GROUPS["🌍 General"],
+    },
+    "todo": {
+        "label": "Todo mezclado",
+        "emoji": "🎲",
+        "categories": [cat for cats in CATEGORY_GROUPS.values() for cat in cats],
+    },
+}
+
+DEFAULT_CATEGORIES = [cat for cats in CATEGORY_GROUPS.values() for cat in cats]
