@@ -46,6 +46,7 @@ async def start_game(
             user_id=user_id,
             show_category_to_impostor=req.show_category_to_impostor,
             show_impostor_count=req.show_impostor_count,
+            exclude_words=req.exclude_words,
         )
     except HTTPException:
         raise

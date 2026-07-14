@@ -4,6 +4,7 @@ from fastapi import HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import DIFFICULTY_FALLBACK, WORD_POOLS
 from app.db import _new_uuid
 from app.game.roles import RoleAssignment, assign_roles
 from app.models import Difficulty, Mode, Player, PlayerTokenOut, StartGameResponse
@@ -31,6 +32,47 @@ def _mode_is_eligible(m: Mode, n: int) -> bool:
     if m == Mode.infiltrados:
         return n >= 5
     return True
+
+
+def pick_word_from_pool(
+    category: str,
+    difficulty: str,
+    exclude: set[str],
+) -> str | None:
+    """
+    Try to pick a word from the static pool for this category.
+
+    Tries difficulty sub-pools in fallback order:
+      facil   → f → d → b
+      dificil → d → b → f
+      brutal  → b → f → d
+
+    If the selected sub-pool is fully exhausted (all words in exclude),
+    falls back to the next tier. If ALL words are excluded, picks randomly
+    from the full pool ignoring the exclusion list (avoids deadlock on
+    long play sessions).
+
+    Returns None if the category has no pool (custom category → use LLM).
+    """
+    pool = WORD_POOLS.get(category)
+    if not pool:
+        return None
+
+    order = DIFFICULTY_FALLBACK.get(difficulty, ["d", "f", "b"])
+
+    # Try each tier in fallback order
+    for tier in order:
+        candidates = [w for w in pool.get(tier, []) if w not in exclude]
+        if candidates:
+            return random.choice(candidates)
+
+    # All words exhausted — pick from full pool ignoring exclusion
+    all_words = [w for tier_words in pool.values() for w in tier_words]
+    if all_words:
+        print(f"[Pool] All words exhausted for '{category}', cycling — ignoring exclude list")
+        return random.choice(all_words)
+
+    return None
 
 
 def _build_message(
@@ -90,14 +132,13 @@ class GameEngine:
         user_id: str | None = None,
         show_category_to_impostor: bool = True,
         show_impostor_count: bool = True,
+        exclude_words: list[str] | None = None,
     ) -> StartGameResponse:
-        # Block internal modes from being requested directly
         if mode in _INTERNAL_MODES:
             raise HTTPException(
                 status_code=400, detail="This mode cannot be selected directly"
             )
 
-        # Player-count guards
         if mode == Mode.aliados and len(players) < 4:
             raise HTTPException(
                 status_code=400, detail="aliados requires at least 4 players"
@@ -107,32 +148,39 @@ class GameEngine:
                 status_code=400, detail="infiltrados requires at least 5 players"
             )
 
-        # Resolve aleatorio to a concrete mode
         resolved_mode = mode
         if mode == Mode.aleatorio:
             eligible = [m for m in _ALEATORIO_POOL if _mode_is_eligible(m, len(players))]
             resolved_mode = random.choice(eligible)
 
         category = random.choice(categories)
-        try:
-            word = await self._llm.pick_word(category)
-        except Exception as e:
-            print(f"[LLM pick_word failed] {e} — using fallback word")
-            _FALLBACK: dict[str, list[str]] = {
-                "animal": ["León", "Jirafa", "Pingüino"],
-                "país": ["Brasil", "Japón", "Alemania"],
-                "fruta": ["Mango", "Sandía", "Maracuyá"],
-                "profesión": ["Arquitecto", "Enfermero", "Piloto"],
-                "marca de ropa": ["Nike", "Adidas", "Zara"],
-                "comida colombiana": ["Arepas", "Bandeja paisa", "Sancocho"],
-                "ciudad de Colombia": ["Medellín", "Cartagena", "Cali"],
-                "superhéroe": ["Batman", "Spider-Man", "Wonder Woman"],
-                "empresa de tecnología": ["Google", "Apple", "Amazon"],
-                "marca de carros": ["Toyota", "BMW", "Ferrari"],
-                "jugador de fútbol famoso": ["Messi", "Ronaldo", "Neymar"],
-            }
-            defaults = ["Messi", "Google", "Brasil", "León", "Nike"]
-            word = random.choice(_FALLBACK.get(category, defaults))
+        excluded: set[str] = {w.lower() for w in (exclude_words or [])}
+
+        # Try static pool first; fall back to LLM for custom categories
+        word = pick_word_from_pool(category, difficulty.value, excluded)
+        source = "pool"
+
+        if word is None:
+            source = "llm"
+            try:
+                word = await self._llm.pick_word(category)
+            except Exception as e:
+                print(f"[LLM pick_word failed] {e} — using hardcoded fallback")
+                _FALLBACK: dict[str, list[str]] = {
+                    "animal": ["León", "Jirafa", "Pingüino"],
+                    "país": ["Brasil", "Japón", "Alemania"],
+                    "fruta": ["Mango", "Sandía", "Maracuyá"],
+                    "profesión": ["Arquitecto", "Enfermero", "Piloto"],
+                    "marca de ropa": ["Nike", "Adidas", "Zara"],
+                    "superhéroe": ["Batman", "Spider-Man", "Wonder Woman"],
+                    "empresa de tecnología": ["Google", "Apple", "Amazon"],
+                    "marca de carros": ["Toyota", "BMW", "Ferrari"],
+                    "jugador de fútbol famoso": ["Messi", "Ronaldo", "Neymar"],
+                }
+                defaults = ["Messi", "Google", "Brasil", "León", "Nike"]
+                word = random.choice(_FALLBACK.get(category, defaults))
+
+        print(f"[Word] source={source} category='{category}' word='{word}' difficulty={difficulty.value}")
 
         assignments = await assign_roles(
             players=players,
@@ -147,7 +195,6 @@ class GameEngine:
         sent: list[str] = []
         failed: list[str] = []
 
-        # Send Telegram messages (best-effort, skipped if no telegram_id)
         for assignment in assignments:
             if assignment.player.telegram_id is None:
                 failed.append(assignment.player.name)
@@ -162,18 +209,12 @@ class GameEngine:
             role = "IMPOSTOR" if assignment.is_impostor else "jugador"
             print(f"  {status} {assignment.player.name} ({role})")
 
-        # Ensure every player has a DB record so the reveal endpoint can find them.
-        # Case (a): logged-in player — id and token both present, use directly.
-        # Case (b): anonymous with stored token — look up existing PlayerRecord by token.
-        # Case (c): brand-new anonymous player — create a fresh DB record.
-        resolved: list[tuple[str, str]] = []  # (player_id, player_token) per assignment
+        resolved: list[tuple[str, str]] = []
         for assignment in assignments:
             p = assignment.player
             if p.id and p.token:
-                # Case (a): logged-in player
                 resolved.append((p.id, p.token))
             elif p.token:
-                # Case (b): anonymous player returning with a stored token
                 row = await self._db.execute(
                     select(PlayerRecord).where(PlayerRecord.token == p.token)
                 )
@@ -183,10 +224,8 @@ class GameEngine:
                 else:
                     resolved.append(self._new_anon_player(p))
             else:
-                # Case (c): new anonymous player — create fresh record
                 resolved.append(self._new_anon_player(p))
 
-        # Flush so the player rows exist before GamePlayerResult FKs reference them.
         await self._db.flush()
 
         session = GameSession(
@@ -229,4 +268,5 @@ class GameEngine:
             failed=failed,
             session_id=session.id,
             players=player_tokens,
+            word=word,
         )

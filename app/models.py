@@ -46,6 +46,7 @@ class StartGameRequest(BaseModel):
     categories: list[str] | None = Field(None, max_length=15)
     show_category_to_impostor: bool = True
     show_impostor_count: bool = True
+    exclude_words: list[str] = Field(default_factory=list, max_length=200)
 
     @field_validator("categories")
     @classmethod
@@ -76,3 +77,4 @@ class StartGameResponse(BaseModel):
     failed: list[str]
     session_id: str
     players: list[PlayerTokenOut]
+    word: str = ""  # exposed so frontend can track used words across rounds
