@@ -60,9 +60,9 @@ def pick_word_from_pool(
 
     order = DIFFICULTY_FALLBACK.get(difficulty, ["d", "f", "b"])
 
-    # Try each tier in fallback order
+    # Try each tier in fallback order (case-insensitive exclusion)
     for tier in order:
-        candidates = [w for w in pool.get(tier, []) if w not in exclude]
+        candidates = [w for w in pool.get(tier, []) if w.lower() not in exclude]
         if candidates:
             return random.choice(candidates)
 
