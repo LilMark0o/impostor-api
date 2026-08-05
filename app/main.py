@@ -8,6 +8,7 @@ from fastapi import FastAPI  # noqa: E402
 from fastapi.middleware.cors import CORSMiddleware  # noqa: E402
 
 from app.db import Base, engine  # noqa: E402
+from app.routes.analytics import router as analytics_router  # noqa: E402
 from app.routes.auth import router as auth_router  # noqa: E402
 from app.routes.game import router as game_router  # noqa: E402
 from app.routes.reveal import router as reveal_router  # noqa: E402
@@ -39,6 +40,7 @@ app.add_middleware(
 )
 
 app.include_router(game_router, prefix="/api")
+app.include_router(analytics_router, prefix="/api")
 app.include_router(auth_router)
 app.include_router(users_router)
 app.include_router(reveal_router)
