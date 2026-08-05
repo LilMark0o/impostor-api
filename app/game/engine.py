@@ -180,7 +180,10 @@ class GameEngine:
                 defaults = ["Messi", "Google", "Brasil", "León", "Nike"]
                 word = random.choice(_FALLBACK.get(category, defaults))
 
-        print(f"[Word] source={source} category='{category}' word='{word}' difficulty={difficulty.value}")
+        print(
+            f"[Word] source={source} category='{category}' word='{word}' "
+            f"difficulty={difficulty.value}"
+        )
 
         assignments = await assign_roles(
             players=players,
