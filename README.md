@@ -52,9 +52,15 @@ Two dictionaries in `app/config.py` drive the whole game:
 - `WORD_POOLS` — `{category: {"f": [...], "d": [...], "b": [...]}}`, where the
   tiers are *fácil*, *difícil* and *brutal*. A round picks from the preferred
   tier and falls back through the others, so a category never runs dry.
-- `WORD_HINTS` — `{category: {word: [hint, ...]}}`. Subtle nudges the impostor
-  can bluff with. Several hints per word let a round with multiple impostors
-  give each one a different hint.
+- `WORD_HINTS` — `{category: {word: [hint, ...]}}`. One-word nudges the
+  impostor can bluff with (`1989 Milan` → `Gullit`). Each hint is a single
+  word on purpose: it has to fit on the card at a glance. Adding a second hint
+  for the same word lets a round with two impostors give each one a different
+  one.
+
+Tests guard the content: hints only for words that exist in a pool, no hint
+containing its own word, one word per hint, and every football category using
+the `year + winner` form.
 
 To add a category, add it to `WORD_POOLS`, optionally to `WORD_HINTS`, and list
 it in `CATEGORY_GROUPS` so it shows up in the app:
@@ -66,7 +72,7 @@ CATEGORY_GROUPS["🌍 General"].append("mi categoría")
 ```
 
 Two tests guard the content: every hint must belong to a real pool word, and
-no hint may contain its own word.
+no hint may contain its own word. A third one enforces the one-word rule.
 
 ## Endpoints
 

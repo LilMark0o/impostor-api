@@ -67,6 +67,9 @@ def test_new_categories_have_hints_and_pools():
         "Bota de Oro de un Mundial",
         "apodo de futbolista",
         "portero legendario",
+        "defensa legendario",
+        "mediocampista legendario",
+        "delantero legendario",
         "planeta del sistema solar",
         "instrumento musical",
     ]:
@@ -75,6 +78,38 @@ def test_new_categories_have_hints_and_pools():
         assert len(words) >= 5, f"{category} has too few words"
         missing = [w for w in words if w not in WORD_HINTS.get(category, {})]
         assert not missing, f"{category} words without a hint: {missing}"
+
+
+def test_hints_are_a_single_word():
+    """Product rule: a hint is one word, not a sentence."""
+    offenders = []
+    for category, hints in WORD_HINTS.items():
+        for word, hint_list in hints.items():
+            for hint in hint_list:
+                if len(hint.split()) != 1:
+                    offenders.append(f"{category} → {word}: {hint!r}")
+    assert not offenders, f"hints must be one word: {offenders}"
+
+
+def test_short_version_categories_use_year_and_winner():
+    """campeón del mundo / Champions / Bota de Oro name a year and a winner."""
+    for category in [
+        "campeón del mundo",
+        "campeón de la Champions League",
+        "Bota de Oro de un Mundial",
+    ]:
+        for word in _all_words(category):
+            year, _, entity = word.partition(" ")
+            assert year.isdigit() and len(year) == 4, f"{category}: {word!r}"
+            assert entity, f"{category}: {word!r}"
+
+
+def test_porteros_has_at_least_twenty():
+    assert len(_all_words("portero legendario")) >= 20
+
+
+def test_nicknames_cover_famous_and_obscure():
+    assert len(_all_words("apodo de futbolista")) >= 30
 
 
 @pytest.mark.asyncio
