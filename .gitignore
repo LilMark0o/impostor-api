@@ -7,4 +7,6 @@ __pycache__/
 .pytest_cache/
 .worktrees
 impostor.db
+impostor.db.bak*
+*.db.bak*
 .superpowers/
