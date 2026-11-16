@@ -49,7 +49,7 @@ WORD_POOLS: dict[str, dict[str, list[str]]] = {
     },
     "ganador del Balón de Oro": {
         "f": ["Messi","Cristiano Ronaldo","Ronaldinho","Kaká","Zidane","Ronaldo Nazário",
-              "Pelé","Cruyff","Platini","Beckenbauer"],
+              "Pelé","Cruyff","Platini","Beckenbauer","Harry Kane","Ousmane Dembélé"],
         "d": ["Benzema","Modric","Cannavaro","Shevchenko","Nedved","Figo","Rivaldo",
               "Michael Owen","Van Basten","Gullit","Matthäus","Baggio","Stoichkov",
               "Weah","Rossi","Gerd Müller","Rummenigge","Keegan","Eusébio",
@@ -461,6 +461,14 @@ WORD_HINTS: dict[str, dict[str, list[str]]] = {
             "El del Madrid de las cinco Copas de Europa.",
         ],
         "Raúl (finalista)": ["Nunca lo ganó: fue segundo.", "El 7 del Madrid."],
+        "Harry Kane": [
+            "El primer inglés en 25 años.",
+            "Del Tottenham al Bayern, goleador de siempre.",
+        ],
+        "Ousmane Dembélé": [
+            "El sexto francés de la lista.",
+            "Lo ganó con el primer título europeo de su club.",
+        ],
     },
     "campeón del mundo": {
         "Brasil": ["Cinco estrellas, y la última en 2002."],
@@ -504,7 +512,7 @@ WORD_HINTS: dict[str, dict[str, list[str]]] = {
         "Harry Kane": ["Seis, y su equipo cayó en semifinales."],
         "Kylian Mbappé": ["Ocho, y un hat-trick en la final."],
         "Gerd Müller": ["Diez en un solo Mundial."],
-        "Eusébio": ["Nueve, y remontó un 3-0 él solo."],
+        "Eusébio": ["Nueve, y firmó una remontada histórica."],
         "Mario Kempes": ["Seis, y dos en la final."],
         "Paolo Rossi": ["Seis, tras volver de una sanción."],
         "Salvatore Schillaci": ["Seis, y empezó el torneo en el banco."],
@@ -519,7 +527,7 @@ WORD_HINTS: dict[str, dict[str, list[str]]] = {
         "Leônidas": ["Siete en 1938."],
     },
     "apodo de futbolista": {
-        "El Bicho": ["Portugués, y el apodo nace de su propio nombre."],
+        "El Bicho": ["Portugués, y cinco Balones de Oro."],
         "La Pulga": ["Argentino, y el apodo viene de su estatura."],
         "El Fenómeno": ["Brasileño, y dos Mundiales."],
         "El Niño": ["Español, y debutó muy joven con el Atleti."],
