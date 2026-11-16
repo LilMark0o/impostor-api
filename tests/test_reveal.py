@@ -34,13 +34,16 @@ async def _make_session(db, user_id):
     return session
 
 
-async def _make_result(db, session_id, player_id, *, is_impostor=False, category_shown="perro"):
+async def _make_result(
+    db, session_id, player_id, *, is_impostor=False, category_shown="perro", hint=None
+):
     result = GamePlayerResult(
         session_id=session_id,
         player_id=player_id,
         player_name="Alice",
         is_impostor=is_impostor,
         category_shown=category_shown,
+        hint=hint,
     )
     db.add(result)
     await db.flush()
@@ -108,3 +111,47 @@ async def test_reveal_ready_impostor(client, db_session):
     assert data["state"] == "ready"
     assert data["is_impostor"] is True
     assert data["category"] is None  # impostors don't see the category
+
+
+@pytest.mark.asyncio
+async def test_reveal_impostor_sees_hint(client, db_session):
+    user = await _make_user(db_session, google_id="gid4", email="u4@test.com")
+    player = await _make_player(db_session, user.id, token="token-hint-111")
+    session = await _make_session(db_session, user.id)
+    await _make_result(
+        db_session,
+        session.id,
+        player.id,
+        is_impostor=True,
+        category_shown="Messi",
+        hint="Zurdo, bajito, récord de trofeos.",
+    )
+    await db_session.commit()
+
+    resp = await client.get("/p/token-hint-111")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["hint"] == "Zurdo, bajito, récord de trofeos."
+
+
+@pytest.mark.asyncio
+async def test_reveal_non_impostor_never_gets_hint(client, db_session):
+    """A hint leaking to a non-impostor would give the word away."""
+    user = await _make_user(db_session, google_id="gid5", email="u5@test.com")
+    player = await _make_player(db_session, user.id, token="token-hint-222")
+    session = await _make_session(db_session, user.id)
+    await _make_result(
+        db_session,
+        session.id,
+        player.id,
+        is_impostor=False,
+        category_shown="Messi",
+        hint="Zurdo, bajito, récord de trofeos.",
+    )
+    await db_session.commit()
+
+    resp = await client.get("/p/token-hint-222")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["hint"] is None
+    assert data["category"] == "Messi"

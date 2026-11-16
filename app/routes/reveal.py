@@ -17,6 +17,8 @@ class RevealResponse(BaseModel):
     session_id: str | None = None
     is_impostor: bool | None = None
     category: str | None = None
+    # Only ever set for the impostor: a subtle nudge to bluff with.
+    hint: str | None = None
 
 
 @router.get("/p/{token}", response_model=RevealResponse)
@@ -50,4 +52,5 @@ async def reveal(token: str, db: AsyncSession = Depends(get_db)):
         session_id=game_result.session_id,
         is_impostor=game_result.is_impostor,
         category=game_result.category_shown if not game_result.is_impostor else None,
+        hint=game_result.hint if game_result.is_impostor else None,
     )

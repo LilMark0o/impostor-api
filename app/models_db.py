@@ -57,5 +57,7 @@ class GamePlayerResult(Base):
     player_name: Mapped[str] = mapped_column(String, nullable=False)
     is_impostor: Mapped[bool] = mapped_column(Boolean, nullable=False)
     category_shown: Mapped[str] = mapped_column(String, nullable=False)
+    # Curated (or LLM) hint given to the impostor. Null when there is none.
+    hint: Mapped[str | None] = mapped_column(String, nullable=True)
 
     session: Mapped["GameSession"] = relationship("GameSession", back_populates="results")

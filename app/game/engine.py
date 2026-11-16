@@ -89,13 +89,19 @@ def _build_message(
         )
 
     if mode == Mode.todos_impostores:
-        return f"🎭 *¡Todos son impostores!*\n\n📂 {category} — [{assignment.hint}]"
+        msg = "🎭 *¡Todos son impostores!*"
+        if assignment.hint:
+            msg += f"\n\n💡 *Pista:* {assignment.hint}"
+        return msg
 
     lines = ["🎭 *¡Eres el IMPOSTOR!*"]
 
     if show_category_to_impostor:
-        lines.append(f"\n📂 {category} — [{assignment.hint}]")
-    else:
+        line = f"\n📂 {category}"
+        if assignment.hint:
+            line += f" — [{assignment.hint}]"
+        lines.append(line)
+    elif assignment.hint:
         lines.append(f"\n🕵️ Pista: [{assignment.hint}]")
 
     if mode == Mode.aliados and assignment.accomplice:
@@ -252,6 +258,7 @@ class GameEngine:
                     player_name=assignment.player.name,
                     is_impostor=assignment.is_impostor,
                     category_shown=category_shown,
+                    hint=assignment.hint,
                 )
             )
             player_tokens.append(PlayerTokenOut(name=assignment.player.name, token=ptok))

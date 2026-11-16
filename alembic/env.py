@@ -14,11 +14,11 @@ if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
 # Override sqlalchemy.url from environment if DATABASE_URL is set.
-# asyncpg is async-only; swap to psycopg2/pg8000 for the sync Alembic runner.
-db_url = os.environ.get("DATABASE_URL", "")
-if db_url:
-    db_url = db_url.replace("postgresql+asyncpg://", "postgresql://")
-    config.set_main_option("sqlalchemy.url", db_url)
+# The app uses async drivers; Alembic runs synchronously, so swap them here.
+db_url = os.environ.get("DATABASE_URL") or config.get_main_option("sqlalchemy.url") or ""
+db_url = db_url.replace("postgresql+asyncpg://", "postgresql://")
+db_url = db_url.replace("sqlite+aiosqlite://", "sqlite://")
+config.set_main_option("sqlalchemy.url", db_url)
 
 target_metadata = Base.metadata
 

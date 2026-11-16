@@ -23,7 +23,7 @@ async def lifespan(app: FastAPI):
 
     if JWT_SECRET_KEY == "dev-secret-change-in-prod":
         logging.getLogger(__name__).critical(
-            "JWT_SECRET_KEY is using the insecure default — set this env var in Railway!"
+            "JWT_SECRET_KEY is using the insecure default — set this env var before deploying!"
         )
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)

@@ -2,6 +2,7 @@ import random
 
 from pydantic import BaseModel
 
+from app.game.hints import pick_hint_from_pool
 from app.models import Mode, Player
 from app.providers.llm import LLMProvider
 
@@ -12,6 +13,24 @@ class RoleAssignment(BaseModel):
     word: str
     hint: str | None = None
     accomplice: str | None = None  # name of ally in aliados mode
+
+
+async def _resolve_hint(
+    category: str,
+    word: str,
+    difficulty: str,
+    used: list[str],
+    llm: LLMProvider,
+) -> str | None:
+    """Curated hint first (works with no API key), then the LLM, then none."""
+    hint = pick_hint_from_pool(category, word, used)
+    if hint is not None:
+        return hint
+    try:
+        return await llm.pick_hint(category, word, difficulty, exclude=used)
+    except Exception as e:
+        print(f"[LLM pick_hint failed] {e} — no hint this round")
+        return None
 
 
 async def assign_roles(
@@ -64,12 +83,9 @@ async def assign_roles(
     for player in shuffled:
         if player.name in impostors:
             if mode == Mode.todos_impostores:
-                try:
-                    hint = await llm.pick_hint(category, word, difficulty, exclude=used_hints)
-                except Exception as e:
-                    print(f"[LLM pick_hint failed] {e} — using fallback")
-                    hint = "pista"
-                used_hints.append(hint)
+                hint = await _resolve_hint(category, word, difficulty, used_hints, llm)
+                if hint:
+                    used_hints.append(hint)
                 assignments.append(
                     RoleAssignment(
                         player=player,
@@ -79,12 +95,9 @@ async def assign_roles(
                     )
                 )
             else:
-                try:
-                    hint = await llm.pick_hint(category, word, difficulty, exclude=used_hints)
-                except Exception as e:
-                    print(f"[LLM pick_hint failed] {e} — using fallback")
-                    hint = "pista"
-                used_hints.append(hint)
+                hint = await _resolve_hint(category, word, difficulty, used_hints, llm)
+                if hint:
+                    used_hints.append(hint)
                 assignments.append(
                     RoleAssignment(
                         player=player,
