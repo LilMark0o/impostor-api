@@ -114,7 +114,8 @@ docker build -t impostor-api .
 docker run -p 8000:8000 -e JWT_SECRET_KEY=dev impostor-api
 ```
 
-Or use the `docker-compose.yml` in the [parent project](../README.md) to run
+Or use the `docker-compose.yml` in the
+[umbrella project](https://github.com/LilMark0o/impostor) to run
 this together with the web app.
 
 ## License
